@@ -214,9 +214,9 @@ export default function Popup() {
 
           <button
             onClick={generateImage}
-            disabled={loading}
+            disabled={loading || analyzing}
             className={`w-full h-12 rounded-xl text-white text-sm font-medium flex items-center justify-center gap-1.5 transition-all shrink-0 border-none ${
-              loading
+              loading || analyzing
                 ? "bg-indigo-400 text-white/90 cursor-not-allowed shadow-none"
                 : "bg-gradient-to-r from-blue-500 via-indigo-500 to-indigo-600 shadow-md shadow-indigo-500/20 cursor-pointer hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0"
             }`}>
@@ -286,9 +286,9 @@ export default function Popup() {
                 window.open(imageUrl)
               }
             }}
-            disabled={!imageUrl || loading}
+            disabled={!imageUrl || loading || analyzing}
             className={`w-full h-12 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition-all shrink-0 border-none ${
-              imageUrl && !loading
+              imageUrl && !loading && !analyzing
                 ? "bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20 cursor-pointer hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0"
                 : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
             }`}>
