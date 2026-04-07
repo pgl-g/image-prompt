@@ -1,8 +1,8 @@
 {
-  "name": "image-prompt",
-  "displayName": "Image prompt",
+  "name": "vision-prompt",
+  "displayName": "VisionPrompt",
   "version": "0.0.1",
-  "description": "将图片内容转换为描述性提示词，辅助生成与图片相关的文本提示。",
+  "description": "双向生图引擎：右键图片智能生成提示词，提示词一键生成图片",
   "author": "顾孝标",
   "scripts": {
     "dev": "plasmo dev",

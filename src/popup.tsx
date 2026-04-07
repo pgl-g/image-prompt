@@ -1,19 +1,26 @@
 import { useEffect, useRef, useState } from "react"
 import { useStorage } from "@plasmohq/storage/hook"
-import { UploadCloud, Sparkles, Download, MonitorPlay, ImageIcon, Loader2, X } from "lucide-react"
+import { UploadCloud, Sparkles, Download, MonitorPlay, ImageIcon, Loader2, X, ChevronDown, Crown, Zap, Gift } from "lucide-react"
+import { getTierConfig, MODEL_TIERS, TIER_ORDER, DEFAULT_TIER, type TierLevel } from "~config/models"
 
 import "./style.css"
 
-const IMAGE_GEN_API = "https://api.siliconflow.cn/v1/images/generations"
-const IMAGE_GEN_MODEL = "Kwai-Kolors/Kolors"
-const IMAGE_GEN_API_KEY = "sk-gdiamfgbkdmmeazdmqzgbjilaicxynggkjulbstylytjojqz"
+const TIER_ICONS: Record<TierLevel, typeof Gift> = {
+  free: Gift,
+  basic: Zap,
+  premium: Crown
+}
 
-const VISION_API = "https://api.siliconflow.cn/v1/chat/completions"
-const VISION_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
+const TIER_COLORS: Record<TierLevel, string> = {
+  free: "text-slate-500",
+  basic: "text-blue-500",
+  premium: "text-amber-500"
+}
 
 export default function Popup() {
   const [latestPrompt] = useStorage<string>("latestPrompt", "")
   const [savedImageUrl, setSavedImageUrl] = useStorage<string>("generatedImageUrl", "")
+  const [currentTier, setCurrentTier] = useStorage<TierLevel>("currentTier", DEFAULT_TIER)
   const [prompt, setPrompt] = useState("")
   const [imageUrl, setImageUrl] = useState("")
   const [loading, setLoading] = useState(false)
@@ -21,7 +28,12 @@ export default function Popup() {
   const [error, setError] = useState("")
   const [savedPreview, setSavedPreview] = useStorage<string>("uploadPreview", "")
   const [uploadPreview, setUploadPreview] = useState("")
+  const [showTierMenu, setShowTierMenu] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const tierMenuRef = useRef<HTMLDivElement>(null)
+
+  const config = getTierConfig(currentTier || DEFAULT_TIER)
+  const TierIcon = TIER_ICONS[currentTier || DEFAULT_TIER]
 
   useEffect(() => {
     if (latestPrompt) setPrompt(latestPrompt)
@@ -34,6 +46,16 @@ export default function Popup() {
   useEffect(() => {
     if (savedPreview && !uploadPreview) setUploadPreview(savedPreview)
   }, [savedPreview])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tierMenuRef.current && !tierMenuRef.current.contains(e.target as Node)) {
+        setShowTierMenu(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -48,14 +70,14 @@ export default function Popup() {
     setError("")
 
     try {
-      const res = await fetch(VISION_API, {
+      const res = await fetch(config.visionApi, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${IMAGE_GEN_API_KEY}`
+          Authorization: `Bearer ${config.apiKey}`
         },
         body: JSON.stringify({
-          model: VISION_MODEL,
+          model: config.visionModel,
           messages: [
             {
               role: "system",
@@ -120,16 +142,16 @@ export default function Popup() {
     setImageUrl("")
 
     try {
-      const res = await fetch(IMAGE_GEN_API, {
+      const res = await fetch(config.imageGenApi, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${IMAGE_GEN_API_KEY}`
+          Authorization: `Bearer ${config.apiKey}`
         },
         body: JSON.stringify({
-          model: IMAGE_GEN_MODEL,
+          model: config.imageGenModel,
           prompt: prompt.trim(),
-          image_size: "1024x1024"
+          image_size: config.imageSize
         })
       })
 
@@ -161,6 +183,44 @@ export default function Popup() {
           <MonitorPlay size={16} className="text-indigo-500" />
           VisionPrompt <span className="font-normal text-slate-400 text-xs ml-1">· 双向生图引擎</span>
         </h1>
+        <div className="relative" ref={tierMenuRef}>
+          <button
+            onClick={() => setShowTierMenu(!showTierMenu)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 bg-white hover:bg-slate-50 transition-all cursor-pointer ${TIER_COLORS[currentTier || DEFAULT_TIER]}`}>
+            <TierIcon size={12} />
+            {config.label}
+            <ChevronDown size={10} className={`transition-transform ${showTierMenu ? "rotate-180" : ""}`} />
+          </button>
+          {showTierMenu && (
+            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-xl shadow-black/10 border border-slate-100 overflow-hidden z-50">
+              {TIER_ORDER.map((tier) => {
+                const tierConfig = MODEL_TIERS[tier]
+                const Icon = TIER_ICONS[tier]
+                const isActive = tier === (currentTier || DEFAULT_TIER)
+                return (
+                  <button
+                    key={tier}
+                    onClick={() => { setCurrentTier(tier); setShowTierMenu(false) }}
+                    className={`w-full px-3.5 py-2.5 flex items-start gap-2.5 text-left transition-all border-none cursor-pointer ${
+                      isActive ? "bg-indigo-50" : "bg-white hover:bg-slate-50"
+                    }`}>
+                    <Icon size={14} className={`mt-0.5 shrink-0 ${TIER_COLORS[tier]}`} />
+                    <div className="min-w-0">
+                      <div className={`text-xs font-semibold ${isActive ? "text-indigo-600" : "text-slate-700"}`}>
+                        {tierConfig.label}
+                        {isActive && <span className="ml-1.5 text-[10px] text-indigo-400 font-normal">当前</span>}
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">{tierConfig.description}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        {tierConfig.dailyLimit === -1 ? "不限次数" : `每日 ${tierConfig.dailyLimit} 次`}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content Body */}

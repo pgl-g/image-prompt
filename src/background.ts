@@ -1,17 +1,8 @@
 import { Storage } from "@plasmohq/storage"
+import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
 
 const storage = new Storage()
 const CONTEXT_MENU_ID = "generate-prompt-and-image"
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com/chat/completions"
-const DEFAULT_MODEL = "deepseek-vl2"
-const HARDCODED_DEEPSEEK_API_KEY = "sk-267efd103329466faf2346979031111d"
-type ImageContext = {
-  title: string
-  alt: string
-  imageTitle: string
-  ariaLabel: string
-  nearbyText: string
-}
 
 
 const ensureContextMenu = () => {
@@ -32,29 +23,21 @@ chrome.runtime.onStartup.addListener(() => {
   ensureContextMenu()
 })
 
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "openPopup") {
+    chrome.action.openPopup()
+  }
+})
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== CONTEXT_MENU_ID || !info.srcUrl || !tab?.id) {
-    return
-  }
-
-  await storage.set("selectedImagePayload", {
-    url: info.srcUrl,
-    timestamp: Date.now()
-  })
-
-  const apiKey = HARDCODED_DEEPSEEK_API_KEY || (await storage.get<string>("deepseekApiKey"))
-  const model = (await storage.get<string>("deepseekModel")) || DEFAULT_MODEL
-
-  if (!apiKey) {
-    await showFloatingPrompt(tab.id, "未配置 DeepSeek API Key，请在代码中设置。")
     return
   }
 
   await showFloatingPrompt(tab.id, "正在生成提示词，请稍候...", true)
 
   try {
-    const prompt = await generatePromptByDeepSeek(info.srcUrl, tab.id, apiKey, model)
-
+    const prompt = await generatePromptByVision(info.srcUrl)
     await storage.set("latestPrompt", prompt)
     await showFloatingPrompt(tab.id, prompt)
   } catch (error) {
@@ -64,167 +47,66 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 })
 
-const imageUrlToDataUrl = async (imageUrl: string) => {
+const imageUrlToBase64 = async (imageUrl: string): Promise<string> => {
   const res = await fetch(imageUrl)
-
-  if (!res.ok) {
-    throw new Error(`图片下载失败: ${res.status}`)
-  }
+  if (!res.ok) throw new Error(`图片下载失败: ${res.status}`)
 
   const contentType = res.headers.get("content-type") || "image/jpeg"
   const buffer = await res.arrayBuffer()
-
-  let binary = ""
   const bytes = new Uint8Array(buffer)
+  let binary = ""
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i])
   }
-
-  const base64 = btoa(binary)
-  return `data:${contentType};base64,${base64}`
+  return `data:${contentType};base64,${btoa(binary)}`
 }
 
-const extractImageContext = async (tabId: number, imageUrl: string) => {
-  const result = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: (targetImageUrl: string) => {
-      const normalize = (text: string) => text.replace(/\s+/g, " ").trim()
-      const safeText = (text?: string | null) => (text ? normalize(text).slice(0, 300) : "")
+const generatePromptByVision = async (imageUrl: string): Promise<string> => {
+  const tier = ((await storage.get<string>("currentTier")) || DEFAULT_TIER) as TierLevel
+  const config = getTierConfig(tier)
+  const base64 = await imageUrlToBase64(imageUrl)
 
-      const allImages = Array.from(document.querySelectorAll("img"))
-      const selected =
-        allImages.find((img) => img.currentSrc === targetImageUrl || img.src === targetImageUrl) || null
-
-      const title = safeText(document.title)
-      const alt = safeText(selected?.getAttribute("alt"))
-      const imageTitle = safeText(selected?.getAttribute("title"))
-      const ariaLabel = safeText(selected?.getAttribute("aria-label"))
-
-      let nearbyText = ""
-      if (selected) {
-        const container =
-          selected.closest("figure, article, section, div, li") || selected.parentElement || selected
-        nearbyText = safeText(container?.textContent)
-      }
-
-      return { title, alt, imageTitle, ariaLabel, nearbyText }
-    },
-    args: [imageUrl]
-  })
-
-  return (
-    result?.[0]?.result || {
-      title: "",
-      alt: "",
-      imageTitle: "",
-      ariaLabel: "",
-      nearbyText: ""
-    }
-  ) as ImageContext
-}
-
-const generatePromptByDeepSeek = async (
-  imageUrl: string,
-  tabId: number,
-  apiKey: string,
-  model: string
-) => {
-  const imageDataUrl = await imageUrlToDataUrl(imageUrl)
-
-  const multimodalBody = {
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          "你是专业提示词工程师。你会先准确理解图片内容，再输出一段中文文生图提示词。只输出提示词本身，不要解释。"
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "请根据这张图片生成高质量中文提示词，包含主体、环境、光线、构图、风格。"
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: imageDataUrl
-            }
-          }
-        ]
-      }
-    ],
-    temperature: 0.7
-  }
-
-  const res = await fetch(DEEPSEEK_BASE_URL, {
+  const res = await fetch(config.visionApi, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(multimodalBody)
-  })
-
-  if (res.ok) {
-    const data = await res.json()
-    const prompt = data?.choices?.[0]?.message?.content?.trim()
-    if (!prompt) throw new Error("DeepSeek 未返回提示词")
-    return prompt
-  }
-
-  const errorText = await res.text()
-  const unsupportedImageInput =
-    res.status === 400 &&
-    (errorText.includes("unknown variant `image_url`") ||
-      errorText.includes("expected `text`"))
-
-  if (!unsupportedImageInput) {
-    throw new Error(`DeepSeek 请求失败: ${res.status} ${errorText.slice(0, 300)}`)
-  }
-
-  const context = await extractImageContext(tabId, imageUrl)
-  const fallbackRes = await fetch(DEEPSEEK_BASE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
+      Authorization: `Bearer ${config.apiKey}`
     },
     body: JSON.stringify({
-      model: "deepseek-chat",
+      model: config.visionModel,
       messages: [
         {
           role: "system",
           content:
-            "你是专业提示词工程师。当前无法直接读取图片像素，只能根据页面上下文生成提示词。禁止捏造人物、动作、场景；没有明确线索就不要写。只输出提示词本身。"
+            "你是专业提示词工程师。仔细观察图片中的所有视觉细节，然后输出一段准确的中文文生图提示词。只输出提示词本身，不要任何解释或前缀。"
         },
         {
           role: "user",
-          content: `请根据以下上下文生成中文文生图提示词。
-图片链接: ${imageUrl}
-页面标题: ${context.title || "无"}
-图片alt: ${context.alt || "无"}
-图片title: ${context.imageTitle || "无"}
-图片aria-label: ${context.ariaLabel || "无"}
-图片附近文案: ${context.nearbyText || "无"}
-要求: 若上下文没有人物线索，明确禁止出现人物描述。`
+          content: [
+            {
+              type: "text",
+              text: "请根据这张图片生成高质量中文提示词，准确描述主体、环境、光线、构图、色彩、风格。"
+            },
+            {
+              type: "image_url",
+              image_url: { url: base64 }
+            }
+          ]
         }
       ],
       temperature: 0.7
     })
   })
 
-  if (!fallbackRes.ok) {
-    const fallbackError = await fallbackRes.text()
-    throw new Error(`DeepSeek 降级请求失败: ${fallbackRes.status} ${fallbackError.slice(0, 300)}`)
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`视觉模型请求失败: ${res.status} ${errText.slice(0, 300)}`)
   }
 
-  const fallbackData = await fallbackRes.json()
-  const fallbackPrompt = fallbackData?.choices?.[0]?.message?.content?.trim()
-  if (!fallbackPrompt) throw new Error("DeepSeek 降级请求未返回提示词")
-
-  return fallbackPrompt
+  const data = await res.json()
+  const prompt = data?.choices?.[0]?.message?.content?.trim()
+  if (!prompt) throw new Error("视觉模型未返回提示词")
+  return prompt
 }
 
 const showFloatingPrompt = async (tabId: number, text: string, isLoading = false) => {
@@ -285,7 +167,10 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
         copyBtn.onclick = () => {
           navigator.clipboard.writeText(content).then(() => {
             copyBtn.textContent = "已复制"
-            setTimeout(() => { overlay.remove() }, 800)
+            setTimeout(() => {
+              overlay.remove()
+              chrome.runtime.sendMessage({ action: "openPopup" })
+            }, 500)
           })
         }
         box.appendChild(copyBtn)
