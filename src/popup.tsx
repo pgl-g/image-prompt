@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react"
 import { useStorage } from "@plasmohq/storage/hook"
 import {
   UploadCloud, Sparkles, Download, MonitorPlay,
-  ImageIcon, Loader2, X, Crown, UserCircle2
+  ImageIcon, Loader2, X
 } from "lucide-react"
 import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
 
@@ -38,9 +38,6 @@ export default function Popup() {
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState("")
   const [uploadPreview, setUploadPreview] = useState("")
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isLoginOpen, setIsLoginOpen] = useState(false)
-
   const fileRef = useRef<HTMLInputElement>(null)
 
   /** 根据当前套餐等级获取模型配置 */
@@ -208,38 +205,12 @@ export default function Popup() {
           VisionPrompt <span className="font-normal text-slate-400 text-xs ml-1">· 双向生图引擎</span>
         </h1>
 
-        <div className="flex items-center gap-3">
-          {/* 升级 Pro（待接入付费逻辑） */}
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-full text-sm font-semibold shadow-sm hover:shadow-lg hover:shadow-orange-500/30 hover:brightness-110 transition-all cursor-pointer border-none">
-            <Crown size={14} className="fill-white/20" />
-            升级 Pro
-          </button>
-
-          <div className="h-4 w-px bg-slate-200" />
-
-          {/* 用户登录入口（待接入登录逻辑） */}
-          {isLoggedIn ? (
-            <button
-              onClick={() => setIsLoggedIn(false)}
-              title="点击退出登录"
-              className="w-8 h-8 rounded-full ring-2 ring-transparent overflow-hidden hover:ring-indigo-300 transition-all cursor-pointer group relative shadow-sm border-none p-0 bg-slate-200">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64"
-                alt="User Avatar"
-                className="w-full h-full object-cover group-hover:opacity-70 transition-opacity"
-              />
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsLoginOpen(true)}
-              className="text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer border-none bg-transparent">
-              <UserCircle2 size={18} />
-              登录
-            </button>
-          )}
-        </div>
+        {/*
+          TODO: 后续接入 Next.js 用户系统后启用
+          - 升级 Pro → 跳转 Next.js 套餐页
+          - 登录 → 跳转 Next.js 登录页
+          - 登录状态通过 chrome.storage 同步回扩展
+        */}
       </div>
 
       {/* ==================== 主体内容（双栏布局） ==================== */}
