@@ -1,9 +1,19 @@
+/**
+ * Background Service Worker
+ *
+ * 负责：
+ * 1. 注册右键菜单「生成提示词」
+ * 2. 右键图片 → 调用视觉模型生成提示词 → 浮层展示
+ * 3. 浮层复制后通知打开 popup
+ */
+
 import { Storage } from "@plasmohq/storage"
 import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
 
 const storage = new Storage()
 const CONTEXT_MENU_ID = "generate-prompt-and-image"
 
+// ======================== 右键菜单注册 ========================
 
 const ensureContextMenu = () => {
   chrome.contextMenus.removeAll(() => {
@@ -15,24 +25,22 @@ const ensureContextMenu = () => {
   })
 }
 
-chrome.runtime.onInstalled.addListener(() => {
-  ensureContextMenu()
-})
+chrome.runtime.onInstalled.addListener(() => ensureContextMenu())
+chrome.runtime.onStartup.addListener(() => ensureContextMenu())
 
-chrome.runtime.onStartup.addListener(() => {
-  ensureContextMenu()
-})
+// ======================== 消息监听 ========================
 
+/** 接收 content script 的消息，用于复制提示词后自动打开 popup */
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "openPopup") {
     chrome.action.openPopup()
   }
 })
 
+// ======================== 右键菜单点击处理 ========================
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== CONTEXT_MENU_ID || !info.srcUrl || !tab?.id) {
-    return
-  }
+  if (info.menuItemId !== CONTEXT_MENU_ID || !info.srcUrl || !tab?.id) return
 
   await showFloatingPrompt(tab.id, "正在生成提示词，请稍候...", true)
 
@@ -42,11 +50,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await showFloatingPrompt(tab.id, prompt)
   } catch (error) {
     console.error(error)
-    const message = error instanceof Error ? error.message : "未知错误"
-    await showFloatingPrompt(tab.id, `生成失败：${message}`)
+    const msg = error instanceof Error ? error.message : "未知错误"
+    await showFloatingPrompt(tab.id, `生成失败：${msg}`)
   }
 })
 
+// ======================== 图片处理工具 ========================
+
+/** 将远程图片 URL 转为 base64 data URL，用于发送给视觉模型 */
 const imageUrlToBase64 = async (imageUrl: string): Promise<string> => {
   const res = await fetch(imageUrl)
   if (!res.ok) throw new Error(`图片下载失败: ${res.status}`)
@@ -61,6 +72,9 @@ const imageUrlToBase64 = async (imageUrl: string): Promise<string> => {
   return `data:${contentType};base64,${btoa(binary)}`
 }
 
+// ======================== 视觉模型调用 ========================
+
+/** 调用 SiliconFlow 视觉模型（Qwen2.5-VL），将图片转为中文提示词 */
 const generatePromptByVision = async (imageUrl: string): Promise<string> => {
   const tier = ((await storage.get<string>("currentTier")) || DEFAULT_TIER) as TierLevel
   const config = getTierConfig(tier)
@@ -109,6 +123,12 @@ const generatePromptByVision = async (imageUrl: string): Promise<string> => {
   return prompt
 }
 
+// ======================== 浮层注入 ========================
+
+/**
+ * 在网页上注入毛玻璃悬浮窗，展示生成的提示词。
+ * 包含「复制」按钮，复制成功后自动关闭浮层并打开 popup。
+ */
 const showFloatingPrompt = async (tabId: number, text: string, isLoading = false) => {
   await chrome.scripting.executeScript({
     target: { tabId },
@@ -116,6 +136,7 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
       const old = document.getElementById("__image_prompt_overlay__")
       if (old) old.remove()
 
+      // 全屏透明遮罩，点击空白区域关闭
       const overlay = document.createElement("div")
       overlay.id = "__image_prompt_overlay__"
       overlay.style.position = "fixed"
@@ -129,6 +150,7 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
         if (e.target === overlay) overlay.remove()
       }
 
+      // 毛玻璃内容卡片
       const box = document.createElement("div")
       box.style.position = "relative"
       box.style.width = "420px"
@@ -148,9 +170,9 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
       const body = document.createElement("div")
       body.textContent = content
       body.style.whiteSpace = "pre-wrap"
-
       box.appendChild(body)
 
+      // 非加载态时显示复制按钮
       if (!loading) {
         const copyBtn = document.createElement("button")
         copyBtn.textContent = "复制"
