@@ -50,7 +50,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return
   }
 
-  await showFloatingPrompt(tab.id, "正在调用 DeepSeek 生成提示词，请稍候...", true)
+  await showFloatingPrompt(tab.id, "正在生成提示词，请稍候...", true)
 
   try {
     const prompt = await generatePromptByDeepSeek(info.srcUrl, tab.id, apiKey, model)
@@ -263,23 +263,10 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
       box.style.fontSize = "14px"
       box.style.lineHeight = "1.6"
 
-      const close = document.createElement("button")
-      close.textContent = "\u2715"
-      close.style.position = "absolute"
-      close.style.top = "10px"
-      close.style.right = "12px"
-      close.style.background = "transparent"
-      close.style.border = "none"
-      close.style.color = "#9ca3af"
-      close.style.fontSize = "16px"
-      close.style.cursor = "pointer"
-      close.onclick = () => overlay.remove()
-
       const body = document.createElement("div")
       body.textContent = content
       body.style.whiteSpace = "pre-wrap"
 
-      box.appendChild(close)
       box.appendChild(body)
 
       if (!loading) {
@@ -298,7 +285,7 @@ const showFloatingPrompt = async (tabId: number, text: string, isLoading = false
         copyBtn.onclick = () => {
           navigator.clipboard.writeText(content).then(() => {
             copyBtn.textContent = "已复制"
-            setTimeout(() => { copyBtn.textContent = "复制" }, 1500)
+            setTimeout(() => { overlay.remove() }, 800)
           })
         }
         box.appendChild(copyBtn)
