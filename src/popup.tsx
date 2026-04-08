@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react"
 import { useStorage } from "@plasmohq/storage/hook"
 import {
   UploadCloud, Sparkles, Download, MonitorPlay,
-  ImageIcon, Loader2, X
+  ImageIcon, Loader2, X, Trash2
 } from "lucide-react"
 import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
 
@@ -27,9 +27,6 @@ export default function Popup() {
   const [savedImageUrl, setSavedImageUrl] = useStorage<string>("generatedImageUrl", "")
   /** 当前套餐等级 */
   const [currentTier] = useStorage<TierLevel>("currentTier", DEFAULT_TIER)
-  /** 上传图片的 base64 预览，关闭 popup 后保持 */
-  const [savedPreview, setSavedPreview] = useStorage<string>("uploadPreview", "")
-
   // ==================== 组件内部状态 ====================
 
   const [prompt, setPrompt] = useState("")
@@ -38,6 +35,7 @@ export default function Popup() {
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState("")
   const [uploadPreview, setUploadPreview] = useState("")
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   /** 根据当前套餐等级获取模型配置 */
@@ -55,10 +53,12 @@ export default function Popup() {
     if (savedImageUrl && !imageUrl) setImageUrl(savedImageUrl)
   }, [savedImageUrl])
 
-  /** popup 重新打开时恢复上传图片预览 */
+  /** popup 重新打开时从 chrome.storage.local 恢复上传图片预览 */
   useEffect(() => {
-    if (savedPreview && !uploadPreview) setUploadPreview(savedPreview)
-  }, [savedPreview])
+    chrome.storage.local.get("uploadPreview", (result) => {
+      if (result.uploadPreview) setUploadPreview(result.uploadPreview)
+    })
+  }, [])
 
   // ==================== 业务逻辑 ====================
 
@@ -126,7 +126,7 @@ export default function Popup() {
 
     const base64Url = await fileToBase64(file)
     setUploadPreview(base64Url)
-    setSavedPreview(base64Url)
+    chrome.storage.local.set({ uploadPreview: base64Url })
     await analyzeImage(base64Url)
 
     if (fileRef.current) fileRef.current.value = ""
@@ -195,8 +195,14 @@ export default function Popup() {
 
   // ==================== 渲染 ====================
 
+  const clearUploadPreview = () => {
+    setUploadPreview("")
+    setIsImageModalOpen(false)
+    chrome.storage.local.remove("uploadPreview")
+  }
+
   return (
-    <div className="w-[780px] h-[480px] flex flex-col font-sans text-slate-800 bg-white rounded-2xl overflow-hidden">
+    <div className="relative w-[780px] h-[600px] flex flex-col font-sans text-slate-800 bg-white rounded-2xl overflow-hidden">
 
       {/* ==================== 顶部导航栏 ==================== */}
       <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
@@ -214,10 +220,10 @@ export default function Popup() {
       </div>
 
       {/* ==================== 主体内容（双栏布局） ==================== */}
-      <div className="flex-1 px-5 pb-4 flex gap-5 bg-[#FAFAFA] min-h-0">
+      <div className="flex-1 p-8 pb-4 flex flex-col md:flex-row gap-8 bg-[#FAFAFA] min-h-0">
 
         {/* ---------- 左栏：输入区 ---------- */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0 py-4">
+        <div className="flex-1 flex flex-col gap-5 min-w-0 min-h-0">
           {/* 隐藏的文件选择器 */}
           <input
             ref={fileRef}
@@ -227,31 +233,56 @@ export default function Popup() {
             className="hidden"
           />
 
-          {/* 上传按钮 / 识别中状态 */}
+          {/* 上传区域 / 识别中 */}
           {analyzing ? (
-            <div className="w-full h-11 rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50 flex items-center justify-center gap-1.5 text-indigo-500 shrink-0 shadow-sm">
-              <UploadCloud size={15} className="animate-pulse" />
-              <span className="text-xs font-medium tracking-wide animate-pulse">正在识别图片...</span>
+            <div className="w-full h-[56px] rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50 flex items-center justify-center gap-2 text-indigo-500 shrink-0 shadow-sm">
+              <UploadCloud size={18} className="animate-pulse" />
+              <span className="text-sm font-medium tracking-wide animate-pulse">正在识别图片...</span>
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => fileRef.current?.click()}
-              className="w-full h-11 rounded-xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center gap-1.5 text-xs font-medium tracking-wide text-slate-500 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all group shrink-0 shadow-sm hover:shadow cursor-pointer">
-              <UploadCloud size={15} className="group-hover:-translate-y-0.5 transition-transform" />
-              上传图片生成提示词
+              className="w-full h-[56px] rounded-xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50/50 shrink-0 shadow-sm hover:shadow cursor-pointer">
+              <UploadCloud size={18} />
+              <span className="text-sm font-medium tracking-wide">
+                {uploadPreview ? "重新上传图片" : "上传图片生成提示词"}
+              </span>
             </button>
           )}
 
-          {/* 已上传图片预览 */}
-          {uploadPreview && (
-            <div className="w-full h-20 rounded-xl overflow-hidden relative shrink-0 shadow-inner group/preview">
-              <img src={uploadPreview} alt="Upload preview" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-              <button
-                onClick={() => { setUploadPreview(""); setSavedPreview("") }}
-                className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/50 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-all cursor-pointer border-none backdrop-blur-sm">
-                <X size={12} />
-              </button>
+          {/* 缩略预览：点击整卡放大，悬停显示删除 */}
+          {uploadPreview && !analyzing && (
+            <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  setIsImageModalOpen(true)
+                }
+              }}
+              className="w-full h-[110px] bg-slate-900 rounded-xl overflow-hidden relative group flex items-center justify-center shadow-inner shrink-0 cursor-pointer"
+              onClick={() => setIsImageModalOpen(true)}>
+              <img
+                src={uploadPreview}
+                alt="上传参考图"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+              <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    clearUploadPreview()
+                  }}
+                  title="删除当前图片"
+                  className="p-1.5 bg-black/50 text-white/70 hover:text-red-400 hover:bg-black/70 rounded-lg backdrop-blur-sm shadow-sm border-none cursor-pointer">
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -289,7 +320,7 @@ export default function Popup() {
         </div>
 
         {/* ---------- 右栏：结果展示区 ---------- */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0 py-4">
+        <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
 
           {/* 图片展示区 */}
           <div className="flex-1 bg-black rounded-xl overflow-hidden relative shadow-inner min-h-0 flex items-center justify-center">
@@ -342,6 +373,28 @@ export default function Popup() {
       <div className="py-2 bg-white flex justify-center shrink-0">
         <span className="text-[11px] text-slate-400 font-medium tracking-wider">v0.0.1</span>
       </div>
+
+      {/* 上传图放大预览 */}
+      {isImageModalOpen && uploadPreview && (
+        <div
+          role="presentation"
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
+          onClick={() => setIsImageModalOpen(false)}>
+          <button
+            type="button"
+            onClick={() => setIsImageModalOpen(false)}
+            className="absolute top-3 right-3 z-[60] w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center border-none cursor-pointer backdrop-blur-sm"
+            aria-label="关闭预览">
+            <X size={18} />
+          </button>
+          <img
+            src={uploadPreview}
+            alt="放大预览"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

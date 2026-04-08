@@ -15,7 +15,7 @@ const CONTEXT_MENU_ID = "generate-prompt-and-image"
 
 // ======================== 右键菜单注册 ========================
 
-const ensureContextMenu = () => {
+chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: CONTEXT_MENU_ID,
@@ -23,10 +23,7 @@ const ensureContextMenu = () => {
       contexts: ["image"]
     })
   })
-}
-
-chrome.runtime.onInstalled.addListener(() => ensureContextMenu())
-chrome.runtime.onStartup.addListener(() => ensureContextMenu())
+})
 
 // ======================== 消息监听 ========================
 

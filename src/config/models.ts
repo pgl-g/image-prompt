@@ -43,10 +43,10 @@ export const MODEL_TIERS: Record<TierLevel, ModelConfig> = {
     visionApi: "https://api.siliconflow.cn/v1/chat/completions",
     visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
     imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "Kwai-Kolors/Kolors",
+    imageGenModel: "Qwen/Qwen-Image",
     apiKey: SILICONFLOW_API_KEY,
     label: "免费版",
-    description: "Kolors 生图 + Qwen2.5-VL 识图",
+    description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
     dailyLimit: 10,
     imageSize: "1024x1024"
   },
@@ -54,10 +54,10 @@ export const MODEL_TIERS: Record<TierLevel, ModelConfig> = {
     visionApi: "https://api.siliconflow.cn/v1/chat/completions",
     visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
     imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "black-forest-labs/FLUX.1-schnell",
+    imageGenModel: "Qwen/Qwen-Image",
     apiKey: SILICONFLOW_API_KEY,
     label: "基础版",
-    description: "FLUX.1-schnell 生图 + Qwen2.5-VL 识图",
+    description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
     dailyLimit: 50,
     imageSize: "1024x1024"
   },
@@ -65,10 +65,10 @@ export const MODEL_TIERS: Record<TierLevel, ModelConfig> = {
     visionApi: "https://api.siliconflow.cn/v1/chat/completions",
     visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
     imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "black-forest-labs/FLUX.1-dev",
+    imageGenModel: "Qwen/Qwen-Image",
     apiKey: SILICONFLOW_API_KEY,
     label: "高级版",
-    description: "FLUX.1-dev 生图 + Qwen2.5-VL 识图",
+    description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
     dailyLimit: -1,
     imageSize: "1024x1024"
   }
