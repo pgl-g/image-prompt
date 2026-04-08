@@ -1,42 +1,53 @@
 # VisionPrompt
 
-> 双向生图引擎：右键图片智能生成提示词，提示词一键生成图片
+> 双向生图引擎：网页右键识图生成提示词，弹窗内文生图与上传识图
 
-一款基于 AI 的 Chrome 浏览器扩展，实现**图片 → 提示词**和**提示词 → 图片**的双向转换。
+一款基于 AI 的 Chrome 扩展（Manifest V3），在任意网页上完成**图片 → 提示词**与**提示词 → 图片**的闭环。视觉理解与文生图均通过 [SiliconFlow](https://siliconflow.cn/) 的 OpenAI 兼容接口调用。
 
 ## 核心功能
 
-### 图片 → 提示词（右键生成）
-- 在任意网页上**右键点击图片**，选择「生成提示词」
-- 自动调用 DeepSeek 视觉模型分析图片内容
-- 生成包含主体、环境、光线、构图、风格的中文提示词
-- 悬浮窗展示结果，一键复制
+### 图片 → 提示词（右键）
 
-### 提示词 → 图片（Popup 生成）
-- 点击扩展图标打开横向双栏面板
-- 左侧输入/编辑提示词，右侧实时展示生成结果
-- 支持**上传图片**自动识别并生成提示词
-- 生成的图片支持一键下载
+- 在网页上**右键点击图片**，选择「生成提示词」
+- 后台拉取图片并调用视觉模型，生成包含主体、环境、光线、构图、风格的中文文生图提示词
+- 页面内**居中半透明浮层**展示结果，**复制**后浮层自动关闭，并尝试打开扩展弹窗；最新提示词会写入存储，便于弹窗内继续编辑或生图
+
+### 提示词 → 图片（扩展弹窗）
+
+- 点击工具栏扩展图标打开**双栏弹窗**（左输入 / 右结果）
+- 左侧可手动编辑提示词，点击「生成图片」调用文生图接口，右侧展示结果并支持**下载**
+- 支持**本地上传图片**：识别过程中禁用生图与下载；上传预览持久化在 `chrome.storage.local`（避免 `sync` 单项体积限制），可点击缩略图全屏预览、删除参考图
+
+### 模型与套餐（可扩展）
+
+- 配置集中在 `src/config/models.ts`：`free` / `basic` / `premium` 三档，当前视觉模型均为 **Qwen/Qwen2.5-VL-72B-Instruct**，文生图均为 **Qwen/Qwen-Image**（SiliconFlow 侧部分历史模型可能下线，以控制台可用模型为准）
+- 当前等级由 `@plasmohq/storage` 中的 `currentTier` 决定，默认 `free`；后续可接自有后端或 Web 端完成鉴权与限流
+
+### API 密钥（开发说明）
+
+- 密钥与模型名写在 `src/config/models.ts`。**上架商店前**应改为由服务端代理调用，避免密钥被打包进扩展后被提取盗用。
 
 ## 技术栈
 
 | 技术 | 说明 |
-|---|---|
-| [Plasmo](https://docs.plasmo.com/) | Chrome 扩展开发框架 |
-| React + TypeScript | UI 开发 |
-| Tailwind CSS | 样式方案 |
-| [Lucide React](https://lucide.dev/) | 图标库 |
-| DeepSeek API | 图片理解 & 提示词生成 |
-| SiliconFlow API | 图片生成（Kolors 模型）& 视觉理解（Qwen2.5-VL） |
+|------|------|
+| [Plasmo](https://docs.plasmo.com/) | Chrome MV3 扩展框架 |
+| React 18 + TypeScript | 弹窗 UI |
+| Tailwind CSS | 样式 |
+| [Lucide React](https://lucide.dev/) | 图标 |
+| [@plasmohq/storage](https://docs.plasmo.com/framework/storage) | 提示词、生成图 URL、`currentTier` 等持久化 |
+| SiliconFlow API | 视觉对话（chat/completions）与文生图（images/generations） |
 
 ## 项目结构
 
 ```
-├── assets/                # 扩展图标（多尺寸）
+├── assets/                    # 扩展图标（多尺寸）
 ├── src/
-│   ├── background.ts      # 右键菜单、DeepSeek API 调用、悬浮窗注入
-│   ├── popup.tsx           # 弹窗 UI（提示词生图、图片上传识别）
-│   └── style.css           # Tailwind CSS 入口
+│   ├── background.ts          # 右键菜单、视觉 API、页面内浮层注入、openPopup
+│   ├── popup.tsx              # 弹窗：上传识图、文生图、预览与下载
+│   ├── config/
+│   │   └── models.ts          # 套餐与模型、API 地址与密钥（勿提交真实生产密钥到公开仓库）
+│   └── style.css              # Tailwind 入口
 ├── tailwind.config.js
 ├── postcss.config.js
 └── package.json
@@ -50,13 +61,17 @@
 pnpm install
 ```
 
-### 开发模式
+### 开发调试
 
 ```bash
 pnpm dev
 ```
 
-在浏览器中加载 `build/chrome-mv3-dev` 目录即可调试。
+在 Chrome 打开 `chrome://extensions`，开启「开发者模式」，**加载已解压的扩展程序**，选择目录：
+
+`build/chrome-mv3-dev`
+
+修改源码后 Plasmo 会重新打包；若弹窗或后台逻辑异常，建议在扩展卡片上点击**重新加载**后再试。
 
 ### 生产构建
 
@@ -64,31 +79,30 @@ pnpm dev
 pnpm build
 ```
 
-构建产物位于 `build/chrome-mv3-prod/`。
+产物目录：`build/chrome-mv3-prod/`（若你本地曾加载 dev 目录，发布或验收时请改指向 prod，避免混用旧缓存）。
 
-### 打包发布
+### 打包上架
 
 ```bash
 pnpm package
 ```
 
-生成可上传到 Chrome Web Store 的 zip 文件。
+生成可上传 Chrome Web Store 的 zip。
 
 ## 权限说明
 
-| 权限 | 用途 |
-|---|---|
-| `contextMenus` | 在图片上显示右键菜单「生成提示词」 |
-| `storage` | 本地存储提示词、生成图片、用户偏好 |
-| `scripting` | 在网页上注入悬浮窗展示生成结果 |
-| `host_permissions` | 支持在任意网页上右键图片生成提示词 |
+| 权限 / 声明 | 用途 |
+|-------------|------|
+| `contextMenus` | 在图片右键菜单中注册「生成提示词」 |
+| `storage` | 读写扩展状态（含 `chrome.storage.local` 存大图预览） |
+| `scripting` | 在用户操作的标签页注入脚本，展示浮层、读取图片上下文 |
+| `host_permissions: https://*/*` | 抓取用户右键的图片 URL 并请求 SiliconFlow；商店审核时建议在说明中写明「仅在用户主动右键或点击生成时发起网络请求」 |
 
 ## 隐私说明
 
-- 仅在用户主动操作（右键图片 / 点击生成）时调用 AI 接口
-- 不在后台自动访问任何网页
-- 不收集用户个人信息
-- 所有数据仅存储在浏览器本地
+- 仅在用户主动操作（右键图片、打开弹窗上传、点击生成）时发起 AI 相关网络请求
+- 不在后台批量爬取网页
+- 默认不采集账号类个人信息；敏感配置勿写入公开仓库
 
 ## 作者
 

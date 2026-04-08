@@ -2,7 +2,7 @@
   "name": "vision-prompt",
   "displayName": "VisionPrompt",
   "version": "0.0.1",
-  "description": "双向生图引擎：右键图片智能生成提示词，提示词一键生成图片",
+  "description": "右键识图生成中文提示词（浮层复制）；弹窗上传识图、Qwen-Image 文生图与下载。基于 SiliconFlow（Qwen2.5-VL + Qwen-Image），模型分级可扩展。",
   "author": "顾孝标",
   "scripts": {
     "dev": "plasmo dev",
