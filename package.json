@@ -1,7 +1,7 @@
 {
   "name": "vision-prompt",
   "displayName": "VisionPrompt",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "右键识图生成中文提示词（浮层复制）；弹窗上传识图、Qwen-Image 文生图与下载。基于 SiliconFlow（Qwen2.5-VL + Qwen-Image），模型分级可扩展。",
   "author": "顾孝标",
   "scripts": {
