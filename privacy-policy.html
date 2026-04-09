@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisionPrompt 隐私政策</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #333; line-height: 1.8; }
+    h1 { border-bottom: 2px solid #eee; padding-bottom: 12px; }
+    h2 { margin-top: 32px; color: #222; }
+    h3 { color: #444; }
+    ul { padding-left: 20px; }
+    li { margin: 6px 0; }
+    a { color: #0969da; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { color: #222; }
+    .update-date { color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>VisionPrompt 隐私政策</h1>
+  <p class="update-date"><strong>最后更新日期：2026年4月10日</strong></p>
+
+  <h2>概述</h2>
+  <p>VisionPrompt 是一款浏览器扩展程序，提供图片识别生成提示词和 AI 文生图功能。我们重视您的隐私，本政策说明我们如何收集、使用和保护您的数据。</p>
+
+  <h2>数据收集与使用</h2>
+  <h3>我们收集的数据</h3>
+  <ul>
+    <li><strong>图片数据</strong>：当您使用"右键识图"或"上传识图"功能时，您选择的图片会被发送到第三方 AI 服务（SiliconFlow）进行分析处理。</li>
+    <li><strong>文本输入</strong>：当您使用"文生图"功能时，您输入的提示词会被发送到第三方 AI 服务生成图片。</li>
+    <li><strong>本地存储数据</strong>：插件会在浏览器本地存储中保存您的使用偏好设置和每日使用次数记录。</li>
+  </ul>
+
+  <h3>我们不收集的数据</h3>
+  <ul>
+    <li>不收集个人身份信息（姓名、邮箱、地址等）</li>
+    <li>不收集浏览历史或浏览行为</li>
+    <li>不收集 Cookie 或跟踪信息</li>
+    <li>不在服务器端存储您的图片或提示词</li>
+  </ul>
+
+  <h2>第三方服务</h2>
+  <p>本插件使用 SiliconFlow 提供的 AI 模型服务（Qwen2.5-VL 和 Qwen-Image）处理图片识别和图片生成请求。您的图片和提示词数据会通过 HTTPS 加密传输发送至 SiliconFlow API。请参阅 <a href="https://siliconflow.cn/privacy-policy">SiliconFlow 隐私政策</a> 了解其数据处理方式。</p>
+
+  <h2>数据存储</h2>
+  <ul>
+    <li>所有用户偏好设置仅存储在浏览器本地（使用 Chrome Storage API），不会上传到任何服务器。</li>
+    <li>发送到 SiliconFlow API 的图片和文本数据仅用于实时处理，不会被本插件持久化存储。</li>
+  </ul>
+
+  <h2>权限说明</h2>
+  <ul>
+    <li><strong>contextMenus</strong>：用于添加右键菜单"识图生成提示词"选项。</li>
+    <li><strong>storage</strong>：用于在浏览器本地保存用户偏好设置和使用次数。</li>
+    <li><strong>scripting</strong>：用于在网页上注入浮层显示识图结果。</li>
+    <li><strong>host_permissions (https://*/*)</strong>：用于在任意 HTTPS 网页上响应右键菜单操作并显示识图结果浮层。</li>
+  </ul>
+
+  <h2>数据安全</h2>
+  <p>我们通过以下措施保护您的数据安全：</p>
+  <ul>
+    <li>所有 API 请求均通过 HTTPS 加密传输</li>
+    <li>不在任何远程服务器存储用户数据</li>
+    <li>插件代码开源，接受公众审查</li>
+  </ul>
+
+  <h2>儿童隐私</h2>
+  <p>本插件不面向 13 岁以下儿童，不会故意收集儿童的个人信息。</p>
+
+  <h2>隐私政策变更</h2>
+  <p>我们可能会不时更新本隐私政策。更新后的政策将在本页面发布，并更新"最后更新日期"。</p>
+
+  <h2>联系方式</h2>
+  <p>如您对本隐私政策有任何疑问，请通过以下方式联系我们：</p>
+  <ul>
+    <li>GitHub Issues：<a href="https://github.com/pgl-g/image-prompt/issues">image-prompt</a></li>
+  </ul>
+</body>
+</html>
