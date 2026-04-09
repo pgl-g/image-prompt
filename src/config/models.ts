@@ -34,49 +34,43 @@ export interface ModelConfig {
 
 // ======================== API 密钥 ========================
 
+// ⚠️ 安全警告：上线前必须通过后端代理转发请求，移除客户端 API Key
 const SILICONFLOW_API_KEY = "sk-gdiamfgbkdmmeazdmqzgbjilaicxynggkjulbstylytjojqz"
 
 // ======================== 套餐配置 ========================
 
+/** 三个套餐共用的基础模型配置 */
+const BASE_CONFIG = {
+  visionApi: "https://api.siliconflow.cn/v1/chat/completions",
+  visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
+  imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
+  imageGenModel: "Qwen/Qwen-Image",
+  apiKey: SILICONFLOW_API_KEY,
+  imageSize: "1024x1024"
+} as const
+
 export const MODEL_TIERS: Record<TierLevel, ModelConfig> = {
   free: {
-    visionApi: "https://api.siliconflow.cn/v1/chat/completions",
-    visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
-    imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "Qwen/Qwen-Image",
-    apiKey: SILICONFLOW_API_KEY,
+    ...BASE_CONFIG,
     label: "免费版",
     description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
-    dailyLimit: 10,
-    imageSize: "1024x1024"
+    dailyLimit: 10
   },
   basic: {
-    visionApi: "https://api.siliconflow.cn/v1/chat/completions",
-    visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
-    imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "Qwen/Qwen-Image",
-    apiKey: SILICONFLOW_API_KEY,
+    ...BASE_CONFIG,
     label: "基础版",
     description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
-    dailyLimit: 50,
-    imageSize: "1024x1024"
+    dailyLimit: 50
   },
   premium: {
-    visionApi: "https://api.siliconflow.cn/v1/chat/completions",
-    visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
-    imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
-    imageGenModel: "Qwen/Qwen-Image",
-    apiKey: SILICONFLOW_API_KEY,
+    ...BASE_CONFIG,
     label: "高级版",
     description: "Qwen-Image 生图 + Qwen2.5-VL 识图",
-    dailyLimit: -1,
-    imageSize: "1024x1024"
+    dailyLimit: -1
   }
 }
 
 // ======================== 工具函数 ========================
-
-export const TIER_ORDER: TierLevel[] = ["free", "basic", "premium"]
 
 export const DEFAULT_TIER: TierLevel = "free"
 

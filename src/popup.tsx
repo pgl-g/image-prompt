@@ -15,6 +15,7 @@ import {
   ImageIcon, Loader2, X, Trash2
 } from "lucide-react"
 import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
+import { callVisionModel, checkUsageLimit } from "~services/api"
 
 import "./style.css"
 
@@ -76,40 +77,12 @@ export default function Popup() {
     setError("")
 
     try {
-      const res = await fetch(config.visionApi, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiKey}`
-        },
-        body: JSON.stringify({
-          model: config.visionModel,
-          messages: [
-            {
-              role: "system",
-              content:
-                "你是专业提示词工程师。请根据图片内容生成一段中文文生图提示词，包含主体、环境、光线、构图、风格。只输出提示词本身，不要解释。"
-            },
-            {
-              role: "user",
-              content: [
-                { type: "image_url", image_url: { url: base64Url, detail: "high" } },
-                { type: "text", text: "请根据这张图片生成高质量中文提示词。" }
-              ]
-            }
-          ]
-        })
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(`视觉分析失败: ${res.status} ${text.slice(0, 200)}`)
+      const allowed = await checkUsageLimit(config.dailyLimit)
+      if (!allowed) {
+        setError(`已达今日使用上限（${config.dailyLimit} 次），请明天再试`)
+        return
       }
-
-      const data = await res.json()
-      const content = data?.choices?.[0]?.message?.content?.trim()
-      if (!content) throw new Error("模型未返回提示词")
-
+      const content = await callVisionModel(base64Url, config)
       setPrompt(content)
     } catch (err) {
       console.error(err)
@@ -126,7 +99,10 @@ export default function Popup() {
 
     const base64Url = await fileToBase64(file)
     setUploadPreview(base64Url)
-    chrome.storage.local.set({ uploadPreview: base64Url })
+    // 仅在 5MB 以内时持久化预览，避免超出 chrome.storage.local 限额
+    if (base64Url.length < 5 * 1024 * 1024) {
+      chrome.storage.local.set({ uploadPreview: base64Url })
+    }
     await analyzeImage(base64Url)
 
     if (fileRef.current) fileRef.current.value = ""
@@ -144,6 +120,12 @@ export default function Popup() {
     setImageUrl("")
 
     try {
+      const allowed = await checkUsageLimit(config.dailyLimit)
+      if (!allowed) {
+        setError(`已达今日使用上限（${config.dailyLimit} 次），请明天再试`)
+        return
+      }
+
       const res = await fetch(config.imageGenApi, {
         method: "POST",
         headers: {

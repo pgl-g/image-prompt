@@ -9,6 +9,7 @@
 
 import { Storage } from "@plasmohq/storage"
 import { getTierConfig, DEFAULT_TIER, type TierLevel } from "~config/models"
+import { callVisionModel, checkUsageLimit } from "~services/api"
 
 const storage = new Storage()
 const CONTEXT_MENU_ID = "generate-prompt-and-image"
@@ -30,7 +31,8 @@ chrome.runtime.onInstalled.addListener(() => {
 /** 接收 content script 的消息，用于复制提示词后自动打开 popup */
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "openPopup") {
-    chrome.action.openPopup()
+    // openPopup 需要用户手势上下文，在某些场景下可能失败
+    chrome.action.openPopup().catch(() => {})
   }
 })
 
@@ -75,49 +77,12 @@ const imageUrlToBase64 = async (imageUrl: string): Promise<string> => {
 const generatePromptByVision = async (imageUrl: string): Promise<string> => {
   const tier = ((await storage.get<string>("currentTier")) || DEFAULT_TIER) as TierLevel
   const config = getTierConfig(tier)
+
+  const allowed = await checkUsageLimit(config.dailyLimit)
+  if (!allowed) throw new Error(`已达今日使用上限（${config.dailyLimit} 次），请明天再试`)
+
   const base64 = await imageUrlToBase64(imageUrl)
-
-  const res = await fetch(config.visionApi, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`
-    },
-    body: JSON.stringify({
-      model: config.visionModel,
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是专业提示词工程师。仔细观察图片中的所有视觉细节，然后输出一段准确的中文文生图提示词。只输出提示词本身，不要任何解释或前缀。"
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "请根据这张图片生成高质量中文提示词，准确描述主体、环境、光线、构图、色彩、风格。"
-            },
-            {
-              type: "image_url",
-              image_url: { url: base64 }
-            }
-          ]
-        }
-      ],
-      temperature: 0.7
-    })
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`视觉模型请求失败: ${res.status} ${errText.slice(0, 300)}`)
-  }
-
-  const data = await res.json()
-  const prompt = data?.choices?.[0]?.message?.content?.trim()
-  if (!prompt) throw new Error("视觉模型未返回提示词")
-  return prompt
+  return callVisionModel(base64, config)
 }
 
 // ======================== 浮层注入 ========================
