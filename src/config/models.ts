@@ -33,7 +33,7 @@ export interface ModelConfig {
 // ======================== 后端代理地址 ========================
 
 // Vercel 部署地址，所有 API 请求通过后端代理转发，API Key 存储在服务端
-const API_BASE = "https://image-prompt-pglgs-projects.vercel.app"
+const API_BASE = "image-prompt-beta.vercel.app"
 
 // ======================== 套餐配置 ========================
 
