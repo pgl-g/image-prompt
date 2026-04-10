@@ -128,13 +128,10 @@ export default function Popup() {
 
       const res = await fetch(config.imageGenApi, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiKey}`
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: config.imageGenModel,
           prompt: prompt.trim(),
+          model: config.imageGenModel,
           image_size: config.imageSize
         })
       })

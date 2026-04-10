@@ -7,45 +7,19 @@
 
 import type { ModelConfig } from "~config/models"
 
-// ======================== 统一 Prompt ========================
-
-const VISION_SYSTEM_PROMPT =
-  "你是专业提示词工程师。仔细观察图片中的所有视觉细节，生成一段准确的中文文生图提示词，包含主体、环境、光线、构图、色彩、风格。只输出提示词本身，不要任何解释或前缀。"
-
-const VISION_USER_TEXT = "请根据这张图片生成高质量中文提示词。"
-
 // ======================== 视觉模型调用 ========================
 
-/** 调用视觉模型，将图片 base64 转为中文提示词 */
+/** 调用视觉模型，将图片 base64 转为中文提示词（通过后端代理） */
 export async function callVisionModel(
   base64Url: string,
   config: ModelConfig
 ): Promise<string> {
   const res = await fetch(config.visionApi, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: config.visionModel,
-      messages: [
-        {
-          role: "system",
-          content: VISION_SYSTEM_PROMPT
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "image_url",
-              image_url: { url: base64Url, detail: "high" }
-            },
-            { type: "text", text: VISION_USER_TEXT }
-          ]
-        }
-      ],
-      temperature: 0.7
+      base64Url,
+      model: config.visionModel
     })
   })
 

@@ -20,8 +20,6 @@ export interface ModelConfig {
   imageGenApi: string
   /** 图片生成模型名称 */
   imageGenModel: string
-  /** API 密钥 */
-  apiKey: string
   /** 套餐显示名称 */
   label: string
   /** 套餐描述文案 */
@@ -32,20 +30,19 @@ export interface ModelConfig {
   imageSize: string
 }
 
-// ======================== API 密钥 ========================
+// ======================== 后端代理地址 ========================
 
-// ⚠️ 安全警告：上线前必须通过后端代理转发请求，移除客户端 API Key
-const SILICONFLOW_API_KEY = "sk-gdiamfgbkdmmeazdmqzgbjilaicxynggkjulbstylytjojqz"
+// Vercel 部署地址，所有 API 请求通过后端代理转发，API Key 存储在服务端
+const API_BASE = "https://image-prompt-pgl-gs-projects.vercel.app"
 
 // ======================== 套餐配置 ========================
 
 /** 三个套餐共用的基础模型配置 */
 const BASE_CONFIG = {
-  visionApi: "https://api.siliconflow.cn/v1/chat/completions",
+  visionApi: `${API_BASE}/api/vision`,
   visionModel: "Qwen/Qwen2.5-VL-72B-Instruct",
-  imageGenApi: "https://api.siliconflow.cn/v1/images/generations",
+  imageGenApi: `${API_BASE}/api/image-gen`,
   imageGenModel: "Qwen/Qwen-Image",
-  apiKey: SILICONFLOW_API_KEY,
   imageSize: "1024x1024"
 } as const
 
